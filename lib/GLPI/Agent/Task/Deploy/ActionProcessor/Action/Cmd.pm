@@ -81,7 +81,8 @@ sub _runOnWindows {
     GLPI::Agent::Tools::Win32->require;
 
     my ($exitcode, $fd) = GLPI::Agent::Tools::Win32::runCommand(
-        command => $params->{exec}
+        command => $params->{exec},
+        runner  => $self->{_runner} || 'cmd'
     );
 
     $fd->seek(0, SEEK_SET);

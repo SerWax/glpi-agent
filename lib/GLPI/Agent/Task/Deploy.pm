@@ -301,7 +301,8 @@ sub processRemote {
         # PROCESSING
         my $actionProcessor = GLPI::Agent::Task::Deploy::ActionProcessor->new(
             logger  => $logger,
-            workdir => $workdir->path()
+            workdir => $workdir->path(),
+            runner  => $self->{config}->{'command-runner'}
         );
         my $actionnum = 0;
 

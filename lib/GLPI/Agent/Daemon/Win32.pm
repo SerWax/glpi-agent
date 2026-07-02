@@ -382,12 +382,42 @@ sub RunningServiceOptimization {
     if ($self->{_service_safetime} && $PageFileUsage > $self->{_MaxPageFileUsage} && time > $self->{_service_safetime}) {
         $self->{_service_safetime} += 3600;
         $self->{logger}->info("Restarting myself as ".$self->displayname()." service");
-        my $restart = 'start /b "" cmd /S /C "net stop '.$self->name().' && net start '.$self->name().'" >nul';
-        system($restart);
+        $self->_restartService();
     }
 
     # Avoid to run service optimization too often
     $self->{_optimization_rundate} = time + 60;
+}
+
+# Restart the service without spawning cmd.exe and without opening any window.
+# A short-lived background powershell.exe (CREATE_NO_WINDOW, -WindowStyle Hidden)
+# stops then starts the service via Restart-Service; it outlives this process
+# being stopped. Uses -EncodedCommand (inline, not gated by the execution policy).
+sub _restartService {
+    my ($self) = @_;
+
+    my $name = $self->name();
+    my $ps   = GLPI::Agent::Tools::Win32::_powershellExe();
+
+    my $script = "Start-Sleep -Milliseconds 750\r\n"
+        . "Restart-Service -Name '$name' -Force\r\n";
+    my $encoded = GLPI::Agent::Tools::Win32::_encodePowerShell($script);
+    my $cmdline = "powershell -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand $encoded";
+
+    my $ok = eval {
+        Win32::Process->require();
+        my $proc;
+        Win32::Process::Create(
+            $proc,
+            $ps,
+            $cmdline,
+            0,
+            Win32::Process::CREATE_NO_WINDOW() | Win32::Process::NORMAL_PRIORITY_CLASS(),
+            "."
+        );
+    };
+    $self->{logger}->error("Failed to spawn service restart helper: $@")
+        if !$ok && $@;
 }
 
 sub terminate {

@@ -6,6 +6,7 @@ use parent 'Exporter';
 
 use Encode qw(encode);
 use English qw(-no_match_vars);
+use MIME::Base64;
 use File::Basename;
 use File::Spec;
 use File::stat;
@@ -448,6 +449,39 @@ sub getDirectoryHandle {
 }
 
 my $nostderr = $OSNAME eq 'MSWin32' ? "2>nul" : "2>/dev/null";
+
+# Set from the 'command-runner' configuration option at agent init. With
+# 'powershell' on MSWin32, string commands run inline through
+# powershell.exe -EncodedCommand instead of transiting cmd.exe: perl's piped
+# open only falls back to the shell when the spawn string contains shell
+# metacharacters, and appending '2>nul' is what triggers that today. Moving
+# stderr suppression inside the base64 payload keeps the outer spawn string
+# metacharacter-free, so perl spawns powershell.exe directly.
+my $command_runner = 'cmd';
+
+sub setCommandRunner {
+    my ($runner) = @_;
+    $command_runner = $runner && lc($runner) eq 'powershell' ? 'powershell' : 'cmd';
+}
+
+my $_ps_exe;
+sub _win32PowerShellSpawn {
+    my ($command) = @_;
+    unless (defined $_ps_exe) {
+        my $root = $ENV{SYSTEMROOT} || 'C:\\Windows';
+        my $ps = "$root\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+        $_ps_exe = (-f $ps) ? $ps : 'powershell.exe';
+    }
+    # A command line starting with a quoted program path needs the call
+    # operator: PowerShell parses a leading quoted string as an expression.
+    my $invoke = $command =~ /^\s*"/ ? "& $command" : $command;
+    my $script =
+        "\$ProgressPreference = 'SilentlyContinue'\n" .
+        "& { $invoke } 2>\$null\n";
+    my $encoded = encode_base64(encode('UTF-16LE', $script), '');
+    return "\"$_ps_exe\" -NoProfile -NonInteractive -EncodedCommand $encoded";
+}
+
 sub getFileHandle {
     my (%params) = @_;
 
@@ -495,6 +529,8 @@ sub getFileHandle {
                 $cmdpid  = open($handle, '-|', @{$params{command}});
                 # Reset STDERR after we forked the command
                 open(STDERR, ">&", $OLDSTDERR);
+            } elsif ($OSNAME eq 'MSWin32' && $command_runner eq 'powershell') {
+                $cmdpid  = open($handle, '-|', _win32PowerShellSpawn($params{command}));
             } else {
                 $cmdpid  = open($handle, '-|', $params{command}." ".$nostderr);
             }

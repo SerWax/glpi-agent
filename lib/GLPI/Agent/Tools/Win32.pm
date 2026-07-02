@@ -513,9 +513,28 @@ sub _getRegistryDynamic {
     return \%ret;
 }
 
+my $_powershell_exe;
+sub _powershellExe {
+    return $_powershell_exe if defined $_powershell_exe;
+    my $root = $ENV{SYSTEMROOT} || 'C:\\Windows';
+    my $ps = "$root\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+    $_powershell_exe = (-f $ps) ? $ps : 'powershell.exe';
+    return $_powershell_exe;
+}
+
+# Encode a PowerShell script for -EncodedCommand: base64 of the UTF-16LE bytes.
+# -EncodedCommand (like -Command) runs inline pipeline input, which is not a
+# script *file*, so the execution policy does not gate it. Any .ps1 the
+# command dot-sources or calls is still gated as usual.
+sub _encodePowerShell {
+    my ($script) = @_;
+    return encode_base64(encode('UTF-16LE', $script), '');
+}
+
 sub runCommand {
     my (%params) = (
         timeout => 3600 * 2,
+        runner  => 'cmd',
         @_
     );
 
@@ -526,28 +545,56 @@ sub runCommand {
     my $winCwd = Cwd::getcwd();
     $winCwd =~ s{/}{\\}g;
 
-    my $provider = lc($GLPI::Agent::Version::PROVIDER);
-    my $template = $ENV{TEMP}."\\".$provider."XXXXXXXXXXX";
-    my ($fh, $filename) = File::Temp::tempfile( $template, SUFFIX => '.bat');
-    print $fh "cd \"".$winCwd."\"\r\n";
-    print $fh $params{command}."\r\n";
-    print $fh "exit %ERRORLEVEL%\r\n";
-    close $fh;
-
     my $args = {
         stdout    => $buff,
         stderr    => $buff,
         no_window => 1
     };
 
-    $job->spawn(
-        "$ENV{SYSTEMROOT}\\system32\\cmd.exe",
-        "start /wait cmd /c $filename",
-        $args
-    );
+    my $filename;
+
+    if (lc($params{runner}) eq 'powershell') {
+        # cmd.exe-free runner: run the command inline via powershell.exe
+        # -EncodedCommand. No .bat is written and cmd.exe is never spawned.
+        my $cwd = $winCwd;
+        $cwd =~ s/'/''/g; # escape single quotes for the PowerShell literal
+        # A command line starting with a quoted program path needs the call
+        # operator: PowerShell parses a leading quoted string as an expression.
+        $params{command} = '& ' . $params{command} if $params{command} =~ /^\s*"/;
+        my $script = <<"PSEOF";
+\$ErrorActionPreference = 'Continue'
+\$ProgressPreference = 'SilentlyContinue'
+\$global:LASTEXITCODE = 0
+Set-Location -LiteralPath '$cwd'
+$params{command}
+if (\$null -eq \$LASTEXITCODE) { exit 0 } else { exit \$LASTEXITCODE }
+PSEOF
+        my $encoded = _encodePowerShell($script);
+
+        $job->spawn(
+            _powershellExe(),
+            "powershell -NoProfile -NonInteractive -EncodedCommand $encoded",
+            $args
+        );
+    } else {
+        my $provider = lc($GLPI::Agent::Version::PROVIDER);
+        my $template = $ENV{TEMP}."\\".$provider."XXXXXXXXXXX";
+        my $fh;
+        ($fh, $filename) = File::Temp::tempfile( $template, SUFFIX => '.bat');
+        print $fh "cd \"".$winCwd."\"\r\n";
+        print $fh $params{command}."\r\n";
+        print $fh "exit %ERRORLEVEL%\r\n";
+        close $fh;
+
+        $job->spawn(
+            "$ENV{SYSTEMROOT}\\system32\\cmd.exe",
+            "start /wait cmd /c $filename",
+            $args
+        );
+    }
 
     $job->run($params{timeout});
-    unlink($filename);
+    unlink($filename) if $filename;
 
     $buff->seek(0, SEEK_SET);
 
@@ -572,17 +619,16 @@ sub runPowerShell {
 
     return $remote->runPowerShell(script => $script) if $remote;
 
-    my $fh = File::Temp->new(
-        TEMPLATE    => 'get-appxpackage-XXXXXX',
-        SUFFIX      => '.ps1'
-    );
-    print $fh $script;
-    close $fh;
-    my $file = $fh->filename;
-    return unless $file && -f $file;
+    # Run inline via -EncodedCommand rather than a generated temp .ps1: a
+    # temporary script is unsigned and refused under the AllSigned execution
+    # policy, and -ExecutionPolicy on the command line cannot override a
+    # policy enforced by group policy. -EncodedCommand is not a script file,
+    # so it always runs.
+    my $encoded = _encodePowerShell($script);
+    my $ps = _powershellExe();
 
     return map { my $line = $_ ; $line =~ s/\r$//; decode("UTF-8", $line) } getAllLines(
-        command => "powershell -NonInteractive -ExecutionPolicy Unrestricted -File $file",
+        command => "\"$ps\" -NoProfile -NonInteractive -EncodedCommand $encoded",
         %params
     );
 }

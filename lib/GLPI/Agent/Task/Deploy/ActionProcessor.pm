@@ -17,6 +17,7 @@ sub new {
         _logger  => $params{logger},
         _workdir => $params{workdir},
         _curdir  => getcwd(),
+        _runner  => $params{runner},
         _failed  => 0,
     };
 
@@ -56,7 +57,8 @@ sub process {
         $self->{_logger}->debug2("Processing $actionName action...");
         my $action = GLPI::Agent::Task::Deploy::ActionProcessor::Action->new(
             logger  => $self->{_logger},
-            action  => $actionName
+            action  => $actionName,
+            runner  => $self->{_runner}
         );
         $ret = $action->do($params);
     } else {

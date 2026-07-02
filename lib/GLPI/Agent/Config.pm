@@ -16,6 +16,7 @@ my $default = {
     'additional-content'      => undef,
     'backend-collect-timeout' => 180,
     'ca-cert-dir'             => undef,
+    'command-runner'          => 'cmd',
     'ca-cert-file'            => undef,
     'color'                   => undef,
     'conf-reload-interval'    => 0,
@@ -369,6 +370,23 @@ sub _checkContent {
     /) {
         next if empty($self->{$option});
         $self->{$option} = File::Spec->rel2abs($self->{$option});
+    }
+
+    # command-runner selects how commands are executed on MSWin32:
+    #   'cmd'        - legacy behaviour: deploy commands run via a temporary
+    #                  .bat through cmd.exe
+    #   'powershell' - commands run inline via powershell.exe -EncodedCommand,
+    #                  never spawning cmd.exe nor writing a .bat. Suits fleets
+    #                  that block cmd.exe and enforce the AllSigned execution
+    #                  policy (inline commands are not gated; any .ps1 they
+    #                  call must be Authenticode-signed).
+    if (!empty($self->{'command-runner'})) {
+        my $runner = lc($self->{'command-runner'});
+        die "Config: 'command-runner' must be 'cmd' or 'powershell'\n"
+            unless $runner eq 'cmd' || $runner eq 'powershell';
+        $self->{'command-runner'} = $runner;
+    } else {
+        $self->{'command-runner'} = 'cmd';
     }
 
     # conf-reload-interval option

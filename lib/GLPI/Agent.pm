@@ -68,6 +68,10 @@ sub init {
     $self->{vardir} = $self->{config}->{vardir}
         if $self->{config}->{vardir} && -d $self->{config}->{vardir};
 
+    # Let Tools run string commands without cmd.exe when requested
+    GLPI::Agent::Tools::setCommandRunner($config->{'command-runner'})
+        if $OSNAME eq 'MSWin32';
+
     my $logger = GLPI::Agent::Logger->new(config => $config);
     $self->{logger} = $logger;
 
