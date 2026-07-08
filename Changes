@@ -12,6 +12,9 @@ netdiscovery/netinventory:
 packaging:
 * Update Windows packaging to use:
   - 7-Zip v26.02
+* Expose ssl-keystore, ssl-cert-file, ssl-key-file, oauth-client-id and
+  oauth-client-secret in the Windows GPO administrative template
+  (contrib/windows/GLPI-Agent.admx)
 
 1.18 Tue, 23 Jun 2026
 

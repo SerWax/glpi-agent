@@ -103,6 +103,26 @@
           <defaultValue></defaultValue>
         </textBox>
         <checkBox refId="GLPI_json">json</checkBox>
+        <textBox refId="GLPI_ssl-keystore">
+          <label>ssl-keystore</label>
+          <defaultValue></defaultValue>
+        </textBox>
+        <textBox refId="GLPI_ssl-cert-file">
+          <label>ssl-cert-file</label>
+          <defaultValue></defaultValue>
+        </textBox>
+        <textBox refId="GLPI_ssl-key-file">
+          <label>ssl-key-file</label>
+          <defaultValue></defaultValue>
+        </textBox>
+        <textBox refId="GLPI_oauth-client-id">
+          <label>oauth-client-id</label>
+          <defaultValue></defaultValue>
+        </textBox>
+        <textBox refId="GLPI_oauth-client-secret">
+          <label>oauth-client-secret</label>
+          <defaultValue></defaultValue>
+        </textBox>
       </presentation>
     </presentationTable>
   </resources>

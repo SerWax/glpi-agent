@@ -84,6 +84,11 @@
             <string>0</string>
           </falseValue>
         </boolean>
+        <text id="GLPI_ssl-keystore" key="SOFTWARE\GLPI-Agent" valueName="ssl-keystore" />
+        <text id="GLPI_ssl-cert-file" key="SOFTWARE\GLPI-Agent" valueName="ssl-cert-file" />
+        <text id="GLPI_ssl-key-file" key="SOFTWARE\GLPI-Agent" valueName="ssl-key-file" />
+        <text id="GLPI_oauth-client-id" key="SOFTWARE\GLPI-Agent" valueName="oauth-client-id" />
+        <text id="GLPI_oauth-client-secret" key="SOFTWARE\GLPI-Agent" valueName="oauth-client-secret" />
       </elements>
     </policy>
     <policy name="GLPI_CONFIGURE32on64" class="Machine" displayName="$(string.GLPI_CONFIGURE32on64)" explainText="$(string.GLPI_CONFIGURE_EXPLAIN)" presentation="$(presentation.GLPI_CONFIGURE)" key="SOFTWARE\Wow6432Node\GLPI-Agent">
@@ -159,6 +164,11 @@
             <string>0</string>
           </falseValue>
         </boolean>
+        <text id="GLPI_ssl-keystore" key="SOFTWARE\Wow6432Node\GLPI-Agent" valueName="ssl-keystore" />
+        <text id="GLPI_ssl-cert-file" key="SOFTWARE\Wow6432Node\GLPI-Agent" valueName="ssl-cert-file" />
+        <text id="GLPI_ssl-key-file" key="SOFTWARE\Wow6432Node\GLPI-Agent" valueName="ssl-key-file" />
+        <text id="GLPI_oauth-client-id" key="SOFTWARE\Wow6432Node\GLPI-Agent" valueName="oauth-client-id" />
+        <text id="GLPI_oauth-client-secret" key="SOFTWARE\Wow6432Node\GLPI-Agent" valueName="oauth-client-secret" />
       </elements>
     </policy>
   </policies>
