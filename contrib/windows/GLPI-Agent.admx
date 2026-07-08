@@ -6,9 +6,7 @@
   </policyNamespaces>
   <resources minRequiredRevision="1.3" />
   <categories>
-    <category name="GLPI_ROOT" displayName="$(string.GLPI_ROOT)">
-      <parentCategory ref="windows:System" />
-    </category>
+    <category name="GLPI_ROOT" displayName="$(string.GLPI_ROOT)" />
   </categories>
   <policies>
     <policy name="GLPI_CONFIGURE" class="Machine" displayName="$(string.GLPI_CONFIGURE)" explainText="$(string.GLPI_CONFIGURE_EXPLAIN)" presentation="$(presentation.GLPI_CONFIGURE)" key="SOFTWARE\GLPI-Agent">
