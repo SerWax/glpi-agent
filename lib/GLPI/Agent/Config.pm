@@ -190,30 +190,40 @@ sub _loadFromRegistry {
     GLPI::Agent::Tools::Win32->require();
 
     my $provider = $GLPI::Agent::Version::PROVIDER;
-    my $settings = GLPI::Agent::Tools::Win32::getRegistryValue(
-        path        => "HKEY_LOCAL_MACHINE/SOFTWARE/$provider-Agent/*",
-        withtype    => 1
-    );
-    return unless ref($settings) eq 'HASH';
 
-    foreach my $rawKey (keys %$settings) {
-        my $key = lc($rawKey);
-        my ($val, $type) = @{$settings->{$rawKey}};
+    # Read the agent's own key first, then the Group Policy managed key so a
+    # policy-provided value overrides a locally set one. SOFTWARE\Policies is a
+    # WOW64-shared key (not redirected), so this one path serves both the 32-bit
+    # and 64-bit agent. Values there are managed: the Administrative Templates
+    # client-side extension removes them when the GPO stops applying, and the key
+    # is never owned by the agent MSI, so policy configuration survives a
+    # reinstall. Reading the legacy key first keeps existing setups working.
+    foreach my $base ("SOFTWARE/$provider-Agent", "SOFTWARE/Policies/$provider-Agent") {
+        my $settings = GLPI::Agent::Tools::Win32::getRegistryValue(
+            path        => "HKEY_LOCAL_MACHINE/$base/*",
+            withtype    => 1
+        );
+        next unless ref($settings) eq 'HASH';
 
-        if ($type == Win32::TieRegistry::REG_SZ()) {
-            $val =~ s/\s+$//;
-            $val =~ s/^'(.*)'$/$1/;
-            $val =~ s/^"(.*)"$/$1/;
-        }
+        foreach my $rawKey (keys %$settings) {
+            my $key = lc($rawKey);
+            my ($val, $type) = @{$settings->{$rawKey}};
 
-        if ($type == Win32::TieRegistry::REG_DWORD()) {
-            $val = hex($val);
-        }
+            if ($type == Win32::TieRegistry::REG_SZ()) {
+                $val =~ s/\s+$//;
+                $val =~ s/^'(.*)'$/$1/;
+                $val =~ s/^"(.*)"$/$1/;
+            }
 
-        if (exists $self->{_default}->{$key}) {
-            $self->{$key} = $val;
-        } else {
-            warn "Config: unknown configuration directive $key\n";
+            if ($type == Win32::TieRegistry::REG_DWORD()) {
+                $val = hex($val);
+            }
+
+            if (exists $self->{_default}->{$key}) {
+                $self->{$key} = $val;
+            } else {
+                warn "Config: unknown configuration directive $key\n";
+            }
         }
     }
 }

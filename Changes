@@ -4,6 +4,12 @@ Warning for developers: Don't change/remove any entry which doesn't concern your
 
 1.19 not yet released
 
+core:
+* Windows: also read configuration from the group-policy key
+  HKLM\SOFTWARE\Policies\<PROVIDER>-Agent, with priority over the legacy
+  HKLM\SOFTWARE\<PROVIDER>-Agent key, so GPO-delivered settings are managed
+  (auto-revert, not tattooed) and survive an agent reinstall
+
 netdiscovery/netinventory:
 * Make vlan context switching ordered
 * fix #1154: Extract address MAC of connected Yealink phones using CDP
@@ -12,9 +18,11 @@ netdiscovery/netinventory:
 packaging:
 * Update Windows packaging to use:
   - 7-Zip v26.02
-* Expose ssl-keystore, ssl-cert-file, ssl-key-file, oauth-client-id and
-  oauth-client-secret in the Windows GPO administrative template
-  (contrib/windows/GLPI-Agent.admx)
+* Windows GPO administrative template (contrib/windows/GLPI-Agent.admx): write
+  to the managed key HKLM\SOFTWARE\Policies\GLPI-Agent (one WOW64-shared policy,
+  replacing the two tattooing SOFTWARE\GLPI-Agent policies); expose ssl-keystore,
+  ssl-cert-file, ssl-key-file, oauth-client-id and oauth-client-secret; and place
+  the node at the Administrative Templates root
 
 1.18 Tue, 23 Jun 2026
 
